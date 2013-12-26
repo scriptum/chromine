@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>Сапёр</title>
+	<style>
+	body
+	{
+		-webkit-user-select:none;
+		cursor:default
+	}
+	#info{float:right}
+	#mode{float:left}
+	#field
+	{
+		clear:both;
+		padding:10px;
+		text-align:center
+	}
+	#tile td
+	{
+		box-shadow:inset 0px 1px 1px 0px #ace;
+		background-color:#48c;
+		background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #6be), color-stop(1, #48c));
+		border:1px solid #46a;
+		color:#147;
+		min-height:30px;
+		min-width:30px;
+		height:30px;
+		width:30px;
+		text-align:center;
+		padding: 0pt;
+		font: 18pt sans;
+	}
+	#tile td[clr=c1]
+	{
+		color:#00f
+	}
+	#tile td[clr=c2]
+	{
+		color:#080
+	}
+	#tile td[clr=c3]
+	{
+		color:#e00
+	}
+	#tile td[clr=c4]
+	{
+		color:#008
+	}
+	#tile td[clr=c5]
+	{
+		color:#800
+	}
+	#tile td[clr=c6]
+	{
+		color:#808
+	}
+	#tile td[clr=c7]
+	{
+		color:#f80
+	}
+	#tile td[clr=c8]
+	{
+		color:#000
+	}
+
+	#tile td:hover, #tile td.open, #tile td.over
+	{
+		background:#ace;
+	}
+	
+	#tile td.mine
+	{
+		color:#e00;
+	}
+	#tile td.mine_bad
+	{
+		color:#e21;
+	}
+	
+	#tile {
+		margin:auto;
+		border:2px solid #46a;
+		border-collapse: collapse;
+	}
+	</style>
+	<script>
+		function $$(s){return document.querySelectorAll(s)}
+		function $(s){return $$(s)[0]}
+		function creat(e){return document.createElement(e)}
+		function rnd(a, b){return Math.floor(Math.random()*(b-a+1))+a;}
+		var flag = '⚑';
+		var bomb = '☢';
+		var game =
+		{
+			begin:false,
+			tiles:[],
+			x:32,
+			y:16,
+			mines:99,
+			over:false,
+			opened:0
+		}
+		function victory()
+		{
+			alert('Победа! Вермя: ' + (new Date() - game.time) / 1000)
+		}
+		function loop_near(f, x, y)
+		{
+			function chk(f, x, y)
+			{
+				if(x >= 0 && x < game.x && y >= 0 && y < game.y)
+					f(x, y, x + y * game.x);
+			}
+			chk(f,x-1,y-1);
+			chk(f,x,y-1);
+			chk(f,x+1,y-1);
+			chk(f,x-1,y);
+			chk(f,x+1,y);
+			chk(f,x-1,y+1);
+			chk(f,x+1,y+1);
+			chk(f,x,y+1);
+		}
+		function open_near(x, y)
+		{
+			loop_near(function(dx,dy)
+			{
+				var oo=$('#t'+dx+'_'+dy);
+				if(!isOpen(oo) && oo.innerHTML != flag)
+					open_tile(oo,dx,dy);
+			},x,y);
+		}
+		function isOpen(o)
+		{
+			return o.getAttribute("class") == "open"
+		}
+		function game_over()
+		{
+			game.over = true;
+			for(var j = 0; j < game.y; j++)
+			{
+				for(var i = 0; i < game.x; i++)
+				{
+					var o = $('#t'+i+'_'+j);
+					if(game.tiles[i + j * game.x])
+						o.innerHTML = bomb;
+					else
+						if(o.innerHTML == flag)
+							o.setAttribute("class", "mine_bad");
+				}
+			}
+		}
+		function place_mines(x, y, mines)
+		{
+			for(var j = 0; j < game.y; j++)
+				for(var i = 0; i < game.x; i++)
+					game.tiles[i + j * game.x] = false
+			for(var m = 0; m < game.mines; m++)
+			{
+				var r_x = rnd(0, game.x - 1);
+				var r_y = rnd(0, game.y - 1);
+				if(r_x == x && r_y == y)
+					continue;
+				game.tiles[r_x + r_y * game.x] = true;
+			}
+		}
+		function open_tile(o, x, y)
+		{
+			if(game.over)
+				return false;
+			if(game.tiles[x+y*game.x])
+			{
+				game_over();
+				o.setAttribute("class", "mine");
+				return false;
+			}
+			if(game.begin)
+			{
+				game.begin = false;
+				place_mines(x, y);
+			}
+			var mines = 0;
+			loop_near(function(x,y,p){if(game.tiles[p])mines++;},x,y);
+			o.setAttribute("class", "open");
+			o.setAttribute("clr", "c" + mines);
+			if(mines == 0)
+				open_near(x,y);
+			else
+				o.innerHTML = mines;
+			game.opened++;
+			if(game.opened == (game.x+1)*(game.y+x))
+				victory()
+		}
+		function do_click(e)
+		{
+			var o = e.target;
+			var nums = o.id.substr(1).split('_');
+			var x = parseInt(nums[0]);
+			var y = parseInt(nums[1]);
+			if(o.innerHTML == flag)
+				return false;
+			if(isOpen(o))
+			{
+				var mines = 0;
+				loop_near(function(x,y){if($('#t'+x+'_'+y).innerHTML == flag)mines++;},x,y);
+				if(mines == parseInt(o.innerHTML))
+					open_near(x,y);
+				return false;
+			}
+			open_tile(o, x, y);
+			return false;
+		}
+		function do_right_click(e)
+		{
+			var o = e.target;
+			if(isOpen(o))
+				return false;
+			var cnt = $('#mineinf');
+			if(o.innerHTML!=flag)
+			{
+				o.innerHTML = flag;
+				cnt.innerHTML--;
+				if(cnt.innerHTML == 0)
+				{
+					for(var j = 0; j < game.y; j++)
+						for(var i = 0; i < game.x; i++)
+						{
+							var o = $('#t'+i+'_'+j);
+							if(o.innerHTML != flag && !isOpen(o))
+								open_tile(o, i, j);
+						}
+					if(!game.over)
+						victory()
+				}
+			}
+			else
+			{
+				o.innerHTML = '';
+				cnt.innerHTML++;
+			}
+			return false;
+		}
+		function start()
+		{
+			game.begin = true;
+			game.opened = 0;
+			game.time = new Date();
+			$('#mineinf').innerHTML = game.mines;
+			$('#fldinf').innerHTML = game.x + 'x' + game.y;
+			var tbdy = creat('tbody');
+			for(var i = 0; i < game.y; i++)
+			{
+				var tr = creat('tr');
+				for(var j = 0; j < game.x; j++)
+				{
+					var td = creat('td');
+					td.id = 't' + j + '_' + i;
+					td.onclick = do_click;
+					td.oncontextmenu = do_right_click;
+					tr.appendChild(td);
+				}
+				tbdy.appendChild(tr);
+			}
+			$('#tile').appendChild(tbdy);
+		}
+		function init()
+		{
+			start();
+		}
+	</script>
+</head>
+<body onload="init()">
+	<div id="mode">
+		<input type="button" value="Новичок" v="8x8x10" />
+		<input type="button" value="Продвинутый" v="16x16x40" />
+		<input type="button" value="Профессионал" v="32x16x99" />
+	</div>
+	<div id="info">
+		<a id="lvlinf">Профессионал</a> <a id="fldinf"></a>, мин: <a id="mineinf"></a>. <input type="button" value="?" id="help" title="Справка" />
+	</div>
+	<div id="field">
+		<table id="tile">
+		
+		</table>
+	</div>
+</body>
+</html>
