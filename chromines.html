@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
 	<meta charset="utf-8" />
 	<title>Сапёр</title>
@@ -17,73 +17,36 @@
 		padding:10px;
 		text-align:center
 	}
-	#tile td
+	#tile
 	{
-		box-shadow:inset 0px 1px 1px 0px #ace;
-		background-color:#48c;
-		background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #6be), color-stop(1, #48c));
-		border:1px solid #46a;
-		color:#147;
-		min-height:30px;
-		min-width:30px;
-		height:30px;
-		width:30px;
-		text-align:center;
-		padding: 0pt;
-		font: 18pt sans;
-	}
-	#tile td[clr=c1]
-	{
-		color:#00f
-	}
-	#tile td[clr=c2]
-	{
-		color:#080
-	}
-	#tile td[clr=c3]
-	{
-		color:#e00
-	}
-	#tile td[clr=c4]
-	{
-		color:#008
-	}
-	#tile td[clr=c5]
-	{
-		color:#800
-	}
-	#tile td[clr=c6]
-	{
-		color:#808
-	}
-	#tile td[clr=c7]
-	{
-		color:#f80
-	}
-	#tile td[clr=c8]
-	{
-		color:#000
-	}
-
-	#tile td:hover, #tile td.open, #tile td.over
-	{
-		background:#ace;
-	}
-	
-	#tile td.mine
-	{
-		color:#e00;
-	}
-	#tile td.mine_bad
-	{
-		color:#e21;
-	}
-	
-	#tile {
 		margin:auto;
 		border:2px solid #46a;
 		border-collapse: collapse;
 	}
+	#tile td
+	{
+		box-shadow:inset 0px 2px 3px -1px #ace;
+		background-color:#48c;
+		background:-webkit-gradient(linear, left top, left bottom, color-stop(0.2, #6be), color-stop(0.8, #48c));
+		border:1px solid #46a;
+		color:#147;
+		height:30px;
+		width:30px;
+		text-align:center;
+		padding:0;
+		font:18pt sans;
+	}
+	#tile td[clr=c1]{color:#00f}
+	#tile td[clr=c2]{color:#080}
+	#tile td[clr=c3]{color:#e00}
+	#tile td[clr=c4]{color:#008}
+	#tile td[clr=c5]{color:#800}
+	#tile td[clr=c6]{color:#808}
+	#tile td[clr=c7]{color:#f80}
+	#tile td[clr=c8]{color:#000}
+	#tile td.mine{color:#e00;}
+	#tile td.mine_bad{color:#e21;}
+	#tile td:hover, #tile td.open, #tile td.over{background:#ace;}
 	</style>
 	<script>
 		function $$(s){return document.querySelectorAll(s)}
@@ -96,9 +59,9 @@
 		{
 			begin:false,
 			tiles:[],
-			x:16,
+			x:32,
 			y:16,
-			mines:10,
+			mines:99,
 			over:false,
 			opened:0
 		}
@@ -148,7 +111,8 @@
 			{
 				var o = $('#t'+x+'_'+y);
 				if(game.tiles[p])
-					o.innerHTML = bomb;
+					if(o.innerHTML != flag)
+						o.innerHTML = bomb;
 				else
 					if(o.innerHTML == flag)
 						o.setAttribute("class", "mine_bad");
@@ -203,15 +167,15 @@
 		{
 			var o = e.target;
 			var nums = o.id.substr(1).split('_');
-			var x = parseInt(nums[0]);
-			var y = parseInt(nums[1]);
+			var x = parseInt(nums[0],10);
+			var y = parseInt(nums[1],10);
 			if(o.innerHTML == flag)
 				return false;
 			if(isOpen(o))
 			{
 				var mines = 0;
 				loop_near(function(x,y){if($('#t'+x+'_'+y).innerHTML == flag)mines++;},x,y);
-				if(mines == parseInt(o.innerHTML))
+				if(mines == parseInt(o.innerHTML,10))
 					open_near(x,y);
 				return false;
 			}
@@ -250,6 +214,7 @@
 		function start()
 		{
 			game.begin = true;
+			game.over = false;
 			game.opened = 0;
 			$('#mineinf').innerHTML = game.mines;
 			$('#fldinf').innerHTML = game.x + 'x' + game.y;
@@ -269,25 +234,36 @@
 			}
 			$('#tile').appendChild(tbdy);
 		}
-		function init()
+		function start_button(e)
 		{
+			var o = e.target;
+			var a = o.id.split('x');
+			game.x = a[0];
+			game.y = a[1];
+			game.mines = a[2];
+			$('#tile').removeChild($('#tile tbody'))
 			start();
 		}
+		function init()
+		{
+			[].slice.call($$('#mode input')).forEach(function(e){e.onclick=start_button})
+			start();
+			document.body.oncontextmenu = function(){return false};
+		};
 	</script>
 </head>
 <body onload="init()">
 	<div id="mode">
-		<input type="button" value="Новичок" v="8x8x10" />
-		<input type="button" value="Продвинутый" v="16x16x40" />
-		<input type="button" value="Профессионал" v="32x16x99" />
+		<input type="button" value="Новичок" id="8x8x10" />
+		<input type="button" value="Продвинутый" id="16x16x40" />
+		<input type="button" value="Профессионал" id="32x16x99" />
+		<input type="button" value="Эксперт" id="60x30x400" />
 	</div>
 	<div id="info">
-		<a id="lvlinf">Профессионал</a> <a id="fldinf"></a>, мин: <a id="mineinf"></a>. <input type="button" value="?" id="help" title="Справка" />
+		<a id="lvlinf">Профессионал</a> <a id="fldinf"></a>, мин: <a id="mineinf"></a>.
 	</div>
 	<div id="field">
-		<table id="tile">
-		
-		</table>
+		<table id="tile"></table>
 	</div>
 </body>
 </html>
