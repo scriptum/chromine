@@ -96,15 +96,15 @@
 		{
 			begin:false,
 			tiles:[],
-			x:32,
+			x:16,
 			y:16,
-			mines:99,
+			mines:10,
 			over:false,
 			opened:0
 		}
 		function victory()
 		{
-			alert('Победа! Вермя: ' + (new Date() - game.time) / 1000)
+			alert('Победа! Вермя: ' + Math.floor((new Date() - game.time) / 100)/10)
 		}
 		function loop_near(f, x, y)
 		{
@@ -154,19 +154,22 @@
 						o.setAttribute("class", "mine_bad");
 			})
 		}
-		function place_mines(x, y, mines)
+		function place_mines(x, y)
 		{
+			game.time = new Date();
 			loop_game(function(x,y,p)
 			{
 				game.tiles[p] = false;
 			})
-			for(var m = 0; m < game.mines; m++)
+			for(var m = 0; m < game.mines;)
 			{
 				var r_x = rnd(0, game.x - 1);
 				var r_y = rnd(0, game.y - 1);
-				if(r_x == x && r_y == y)
+				var p = r_x + r_y * game.x;
+				if(r_x == x && r_y == y || game.tiles[p])
 					continue;
-				game.tiles[r_x + r_y * game.x] = true;
+				game.tiles[p] = true;
+				m++;
 			}
 		}
 		function open_tile(o, x, y)
@@ -248,7 +251,6 @@
 		{
 			game.begin = true;
 			game.opened = 0;
-			game.time = new Date();
 			$('#mineinf').innerHTML = game.mines;
 			$('#fldinf').innerHTML = game.x + 'x' + game.y;
 			var tbdy = creat('tbody');
