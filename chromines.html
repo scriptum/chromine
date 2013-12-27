@@ -122,13 +122,19 @@
 			chk(f,x+1,y+1);
 			chk(f,x,y+1);
 		}
+		function loop_game(f)
+		{
+			for(var j = 0; j < game.y; j++)
+				for(var i = 0; i < game.x; i++)
+					f(i, j, i + j * game.x)
+		}
 		function open_near(x, y)
 		{
 			loop_near(function(dx,dy)
 			{
 				var oo=$('#t'+dx+'_'+dy);
 				if(!isOpen(oo) && oo.innerHTML != flag)
-					open_tile(oo,dx,dy);
+					open_tile(oo, dx, dy);
 			},x,y);
 		}
 		function isOpen(o)
@@ -138,24 +144,22 @@
 		function game_over()
 		{
 			game.over = true;
-			for(var j = 0; j < game.y; j++)
+			loop_game(function(x,y,p)
 			{
-				for(var i = 0; i < game.x; i++)
-				{
-					var o = $('#t'+i+'_'+j);
-					if(game.tiles[i + j * game.x])
-						o.innerHTML = bomb;
-					else
-						if(o.innerHTML == flag)
-							o.setAttribute("class", "mine_bad");
-				}
-			}
+				var o = $('#t'+x+'_'+y);
+				if(game.tiles[p])
+					o.innerHTML = bomb;
+				else
+					if(o.innerHTML == flag)
+						o.setAttribute("class", "mine_bad");
+			})
 		}
 		function place_mines(x, y, mines)
 		{
-			for(var j = 0; j < game.y; j++)
-				for(var i = 0; i < game.x; i++)
-					game.tiles[i + j * game.x] = false
+			loop_game(function(x,y,p)
+			{
+				game.tiles[p] = false;
+			})
 			for(var m = 0; m < game.mines; m++)
 			{
 				var r_x = rnd(0, game.x - 1);
@@ -223,13 +227,12 @@
 				cnt.innerHTML--;
 				if(cnt.innerHTML == 0)
 				{
-					for(var j = 0; j < game.y; j++)
-						for(var i = 0; i < game.x; i++)
-						{
-							var o = $('#t'+i+'_'+j);
-							if(o.innerHTML != flag && !isOpen(o))
-								open_tile(o, i, j);
-						}
+					loop_game(function(i,j)
+					{
+						var o = $('#t'+i+'_'+j);
+						if(o.innerHTML != flag && !isOpen(o))
+							open_tile(o, i, j);
+					})
 					if(!game.over)
 						victory()
 				}
