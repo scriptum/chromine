@@ -67,47 +67,18 @@
 			y:16,
 			mines:99,
 			over:false,
-			opened:0
-		}
-		function victory()
-		{
-			alert('Победа! Вермя: ' + Math.floor((new Date() - game.time) / 100) / 10)
+			opened:0,
+			mind_mode:false,
+			auto_open:true
 		}
 		function o2xy(o)
 		{
 			var n = o.id.substr(1).split('_');
-			return {x: parseInt(n[0],10), y: parseInt(n[1],10)}
+			return {x: parseInt(n[0]), y: parseInt(n[1])}
 		}
 		function xy2o(x, y)
 		{
 			return $('#t' + x + '_' + y);
-		}
-		function open_tile(o, x, y)
-		{
-			if(game.over)
-				return false;
-			if(game.tiles[x+y*game.x])
-			{
-				game_over();
-				o.setAttribute("class", "mine");
-				return false;
-			}
-			if(game.begin)
-			{
-				game.begin = false;
-				place_mines(x, y);
-			}
-			var mines = 0;
-			loop_near(function(x,y,p){if(game.tiles[p])mines++;},x,y);
-			o.setAttribute("class", "open");
-			o.setAttribute("clr", "c" + mines);
-			if(mines == 0)
-				open_near(x,y);
-			else
-				o.innerHTML = mines;
-			game.opened++;
-			if(game.opened == (game.x+1)*(game.y+x))
-				victory()
 		}
 		function loop_near(f, x, y)
 		{
@@ -131,11 +102,67 @@
 			chk(f,x+1,y+1);
 			chk(f,x,y+1);
 		}
+		function mines_near(x, y, flags)
+		{
+			var mines = 0;
+			if(flags)
+				loop_near(function(x, y)
+				{
+					if(xy2o(x, y).innerHTML == flag)
+						mines++;
+				}, x, y);
+			else
+				loop_near(function(x, y, p)
+				{
+					if(game.tiles[p])
+						mines++;
+				}, x, y);
+			return mines;
+		}
 		function loop_game(f)
 		{
 			for(var j = 0; j < game.y; j++)
 				for(var i = 0; i < game.x; i++)
 					f(i, j, i + j * game.x)
+		}
+		function open_tile(o, x, y)
+		{
+			if(game.end)
+				return false;
+			if(game.tiles[x + y * game.x])
+			{
+				game_over();
+				o.setAttribute("class", "mine");
+				return false;
+			}
+			if(game.begin)
+			{
+				game.begin = false;
+				place_mines(x, y);
+			}
+			var mines = mines_near(x, y);
+			if(game.mind_mode)
+				var flags = mines_near(x, y, true);
+			o.setAttribute("class", "open");
+			if(mines == 0)
+				open_near(x, y);
+			else
+			{
+				if(game.mind_mode)
+					o.innerHTML = mines - flags;
+				else
+					o.innerHTML = mines;
+			}
+			o.setAttribute("clr", "c" + o.innerHTML);
+			game.opened++;
+			if(game.opened == game.x * game.y - game.mines)
+				victory()
+			if(game.auto_open)
+			{
+				var mines = mines_near(x, y, true);
+				if(xy2o(x, y).innerHTML == mines)
+					open_near(x, y);
+			}
 		}
 		function open_near(x, y)
 		{
@@ -150,16 +177,20 @@
 		{
 			return o.getAttribute("class") == "open"
 		}
-		function game_over()
+		function game_end(is_over)
 		{
-			game.over = true;
 			loop_game(function(x,y,p)
 			{
 				var o = xy2o(x, y);
 				if(game.tiles[p])
 				{
 					if(o.innerHTML != flag)
-						o.innerHTML = bomb;
+					{
+						if(game.over)
+							o.innerHTML = bomb;
+						else
+							o.innerHTML = flag;
+					}
 				}
 				else
 				{
@@ -167,6 +198,16 @@
 						o.setAttribute("class", "mine_bad");
 				}
 			})
+		}
+		function victory()
+		{
+			game_end();
+			alert('Победа! Вермя: ' + Math.floor((new Date() - game.time) / 100) / 10);
+		}
+		function game_over()
+		{
+			game.over = true;
+			game_end();
 		}
 		function place_mines(x, y)
 		{
@@ -182,13 +223,9 @@
 				m++;
 			}
 		}
-		function do_click(e)
-		{
-			
-		}
 		function do_down(e)
 		{
-			if(game.over)
+			if(game.end)
 				return false;
 			var o = e.target;
 			if(isOpen(o))
@@ -207,13 +244,9 @@
 					return false;
 				if(isOpen(o))
 				{
-					var mines = 0;
-					loop_near(function(x,y)
-					{
-						if(xy2o(x, y).innerHTML == flag)
-							mines++;
-					}, n.x, n.y);
-					if(mines == parseInt(o.innerHTML,10))
+					var mines = mines_near(x, y);
+					var c = parseInt(o.innerHTML);
+					if(mines == c && !game.mind_mode || game.mind_mode && c == 0)
 						open_near(n.x, n.y);
 					return false;
 				}
@@ -224,7 +257,8 @@
 				if(isOpen(o))
 					return false;
 				var cnt = $('#mineinf');
-				if(o.innerHTML!=flag)
+				var mine_diff = 0;
+				if(o.innerHTML != flag)
 				{
 					o.innerHTML = flag;
 					cnt.innerHTML--;
@@ -239,12 +273,32 @@
 						if(!game.over)
 							victory()
 					}
+					mine_diff = -1;
 				}
 				else
 				{
 					o.innerHTML = '';
 					cnt.innerHTML++;
+					mine_diff = 1;
 				}
+				loop_near(function(x,y,p)
+				{
+					var o = xy2o(x, y);
+					if(isOpen(o))
+					{
+						if(game.mind_mode)
+						{
+							o.innerHTML = mine_diff + parseInt(o.innerHTML);
+							o.setAttribute('clr', 'c' + o.innerHTML);
+						}
+						if(game.auto_open)
+						{
+							var mines = mines_near(x, y, true);
+							if(xy2o(x, y).innerHTML == mines)
+								open_near(x, y);
+						}
+					}
+				}, o);
 			}
 			return false;
 		}
@@ -255,6 +309,7 @@
 		function start()
 		{
 			game.begin = true;
+			game.end = false;
 			game.over = false;
 			game.opened = 0;
 			loop_game(function(x,y,p){game.tiles[p] = false})
@@ -288,7 +343,10 @@
 		}
 		function init()
 		{
-			$$('#mode input').forEach(function(e){e.onclick=start_button});
+			$$('#mode input').forEach(function(e)
+			{
+				e.onclick = start_button
+			});
 			start();
 			document.body.oncontextmenu = function(){return false};
 			document.body.onmouseup = do_up;
