@@ -39,6 +39,26 @@
 		font:18pt sans;
 		padding:0;
 	}
+	#conf_window
+	{
+		background:#fff;
+		position:absolute;
+		width:50%;
+		height:50%;
+		left:25%;
+		top:25%;
+		margin:auto;
+		border:5px solid #46a;
+		border-radius:10px;
+		box-shadow:0 0 0 5000px rgba(0,0,0,0.7);
+		padding:10px;
+		display:none;
+	}
+	#conf_window #close
+	{
+		cursor:pointer;
+		float:right;
+	}
 	#tile td[clr=c1]{color:#00f}
 	#tile td[clr=c2]{color:#080}
 	#tile td[clr=c3]{color:#e00}
@@ -47,28 +67,25 @@
 	#tile td[clr=c6]{color:#808}
 	#tile td[clr=c7]{color:#f80}
 	#tile td[clr=c8]{color:#000}
-	#tile td.mine{color:#e00;}
-	#tile td.mine_bad{color:#e21;}
-	#tile td.open, #tile td.over{background:#ace;}
+	#tile td.mine{color:#e00}
+	#tile td.mine_bad{color:#e21}
+	#tile td.open, #tile td.over{background:#ace}
 	</style>
 	<script>
 		function $$(s){return [].slice.call(document.querySelectorAll(s))}
 		function $(s){return document.querySelector(s)}
 		function creat(e){return document.createElement(e)}
 		function rnd(a, b){return Math.floor(Math.random()*(b-a+1))+a;}
+		function getopt(o){return localStorage.getItem(o)}
+		function setopt(o,v){return localStorage.setItem(o,v)}
 		var flag = '⚑';
 		var bomb = '☢';
 		var game =
 		{
-			begin:false,
 			tiles:[],
 			x:32,
 			y:16,
-			mines:99,
-			over:false,
-			opened:0,
-			mind_mode:false,
-			auto_open:true
+			mines:99
 		}
 		function o2xy(o)
 		{
@@ -124,60 +141,37 @@
 				for(var i = 0; i < game.x; i++)
 					f(i, j, i + j * game.x)
 		}
-		function open_tile(o, x, y)
-		{
-			if(game.end)
-				return false;
-			if(game.tiles[x + y * game.x])
-			{
-				game_over();
-				o.setAttribute("class", "mine");
-				return false;
-			}
-			if(game.begin)
-			{
-				game.begin = false;
-				place_mines(x, y);
-			}
-			var mines = mines_near(x, y);
-			if(game.mind_mode)
-				var flags = mines_near(x, y, true);
-			o.setAttribute("class", "open");
-			if(mines == 0)
-				open_near(x, y);
-			else
-			{
-				if(game.mind_mode)
-					o.innerHTML = mines - flags;
-				else
-					o.innerHTML = mines;
-			}
-			o.setAttribute("clr", "c" + o.innerHTML);
-			game.opened++;
-			if(game.opened == game.x * game.y - game.mines)
-				victory()
-			if(game.auto_open)
-			{
-				var mines = mines_near(x, y, true);
-				if(xy2o(x, y).innerHTML == mines)
-					open_near(x, y);
-			}
-		}
-		function open_near(x, y)
-		{
-			loop_near(function(dx, dy)
-			{
-				var oo = xy2o(dx, dy);
-				if(!isOpen(oo) && oo.innerHTML != flag)
-					open_tile(oo, dx, dy);
-			}, x, y);
-		}
 		function isOpen(o)
 		{
 			return o.getAttribute("class") == "open"
 		}
+		function open_near(x, y)
+		{
+			if(getopt('mind_mode') == 'true')
+			{
+				if(xy2o(x, y).innerHTML > 0)
+					return;
+			}
+			else
+			{
+				if(xy2o(x, y).innerHTML != mines_near(x, y, true))
+					return;
+			}
+			loop_near(function(x, y)
+			{
+				var o = xy2o(x, y);
+				if(!isOpen(o) && o.innerHTML != flag)
+					open_tile(o, x, y);
+			}, x, y);
+		}
+		function open_auto(x, y)
+		{
+			if(getopt('auto_open') == 'true')
+				open_near(x, y);
+		}
 		function game_end(is_over)
 		{
+			game.end = true;
 			loop_game(function(x,y,p)
 			{
 				var o = xy2o(x, y);
@@ -200,13 +194,16 @@
 		}
 		function victory()
 		{
+			if(game.end)
+				return false;
 			game_end();
 			alert('Победа! Вермя: ' + Math.floor((new Date() - game.time) / 100) / 10);
+			setTimeout(start, 500);
+			return false;
 		}
 		function game_over()
 		{
 			game.over = true;
-			game.end = true;
 			game_end();
 		}
 		function place_mines(x, y)
@@ -217,37 +214,64 @@
 				var r_x = rnd(0, game.x - 1);
 				var r_y = rnd(0, game.y - 1);
 				var p = r_x + r_y * game.x;
-				if(r_x == x && r_y == y || game.tiles[p])
+				if(r_x >= x - 1 && r_x <= x + 1 && r_y >= y - 1 && r_y <= y + 1 || game.tiles[p])
 					continue;
 				game.tiles[p] = true;
 				m++;
 			}
+		}
+		function recalcMines(o, x, y)
+		{
+			var mines = mines_near(x, y);
+			if(getopt('mind_mode') == 'true')
+				o.innerHTML = mines - mines_near(x, y, true);
+			else
+				o.innerHTML = mines;
+			if(o.innerHTML == "0")
+				o.innerHTML = "";
+			o.setAttribute("clr", "c" + o.innerHTML);
+		}
+		function open_tile(o, x, y)
+		{
+			if(game.end || isOpen(o))
+				return false;
+			if(game.tiles[x + y * game.x])
+			{
+				o.setAttribute("class", "mine");
+				game_over();
+				return false;
+			}
+			if(game.begin)
+			{
+				game.begin = false;
+				place_mines(x, y);
+			}
+			o.setAttribute("class", "open");
+			recalcMines(o, x, y);
+			game.opened++;
+			if(game.opened == game.x * game.y - game.mines)
+				return victory();
+			open_near(x, y);
 		}
 		function do_down(e)
 		{
 			if(game.end)
 				return false;
 			var o = e.target;
-			if(isOpen(o))
-			{
-				loop_near(function(x, y)
-				{
-					var o = xy2o(x, y);
-					if(!isOpen(o) && o.innerHTML != flag)
-						o.classList.add('over');
-				}, o);
-			}
-			var n = o2xy(o);
 			if(e.button == 0)
 			{
 				if(o.innerHTML == flag)
 					return false;
+				var n = o2xy(o);
 				if(isOpen(o))
 				{
-					var mines = mines_near(x, y);
-					var c = parseInt(o.innerHTML);
-					if(mines == c && !game.mind_mode || game.mind_mode && c == 0)
-						open_near(n.x, n.y);
+					loop_near(function(x, y)
+					{
+						var oo = xy2o(x, y);
+						if(!isOpen(oo) && oo.innerHTML != flag)
+							oo.classList.add('over');
+					}, o);
+					open_near(n.x, n.y);
 					return false;
 				}
 				open_tile(o, n.x, n.y);
@@ -269,9 +293,9 @@
 							var o = xy2o(i, j);
 							if(o.innerHTML != flag && !isOpen(o))
 								open_tile(o, i, j);
-						})
+						});
 						if(!game.over)
-							victory()
+							return victory();
 					}
 					mine_diff = -1;
 				}
@@ -286,17 +310,8 @@
 					var o = xy2o(x, y);
 					if(isOpen(o))
 					{
-						if(game.mind_mode)
-						{
-							o.innerHTML = mine_diff + parseInt(o.innerHTML);
-							o.setAttribute('clr', 'c' + o.innerHTML);
-						}
-						if(game.auto_open)
-						{
-							var mines = mines_near(x, y, true);
-							if(xy2o(x, y).innerHTML == mines)
-								open_near(x, y);
-						}
+						recalcMines(o, x, y);
+						open_auto(x, y);
 					}
 				}, o);
 			}
@@ -313,6 +328,7 @@
 			game.over = false;
 			game.opened = 0;
 			loop_game(function(x,y,p){game.tiles[p] = false})
+			$('#tile').removeChild($('#tile tbody'));
 			$('#mineinf').innerHTML = game.mines;
 			$('#fldinf').innerHTML = game.x + 'x' + game.y;
 			var tbdy = creat('tbody');
@@ -337,7 +353,6 @@
 			game.x = a[0];
 			game.y = a[1];
 			game.mines = a[2];
-			$('#tile').removeChild($('#tile tbody'))
 			$('#lvlinf').innerHTML = o.value;
 			start();
 		}
@@ -348,8 +363,22 @@
 				e.onclick = start_button
 			});
 			start();
-			document.body.oncontextmenu = function(){return false};
-			document.body.onmouseup = do_up;
+			var b = document.body;
+			b.oncontextmenu = function(){return false};
+			b.onmouseup = do_up;
+			var s = {"auto_open":"Открывать соседние клетки по возможности","mind_mode":"Автоматически уменьшать вес поля после установки мин"};
+			for(i in s)
+			{
+				if(getopt(i) == undefined)
+					setopt(i, false);
+				$('#conf_window').innerHTML += '<input type="checkbox" onchange="settings(this)" name="'+i+'"'+((getopt(i) == 'true') ? ' checked' : '')+'/> '+s[i]+' <br />';
+			}
+			$('#close').onmousedown = function(){$('#conf_window').style.display = 'none'}
+			$('#conf').onmousedown = function(){$('#conf_window').style.display = 'block'}
+		}
+		function settings(e)
+		{
+			setopt(e.name, e.checked)
 		};
 	</script>
 </head>
@@ -362,9 +391,13 @@
 	</div>
 	<div id="info">
 		<a id="lvlinf">Профессионал</a> <a id="fldinf"></a>, мин: <a id="mineinf"></a>.
+		<input type="button" value="⚙" id="conf" />
 	</div>
 	<div id="field">
-		<table id="tile"></table>
+		<table id="tile"><tbody></tbody></table>
+	</div>
+	<div id="conf_window">
+		<div id="close">✖</div>
 	</div>
 </body>
 </html>
