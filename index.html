@@ -260,28 +260,30 @@
 			if(game.end)
 				return false;
 			var o = e.target;
-			if(e.button == 0)
+			if(isOpen(o))
+			{
+				loop_near(function(x, y)
+				{
+					var oo = xy2o(x, y);
+					if(!isOpen(oo) && oo.innerHTML != flag)
+						oo.classList.add('over');
+				}, o);
+				open_near(n.x, n.y);
+				return false;
+			}
+			var swp = getopt('swap_mouse') == 'true';
+			if(e.button == 0 && !swp || e.button == 2 && swp || game.begin)
 			{
 				if(o.innerHTML == flag)
 					return false;
 				var n = o2xy(o);
-				if(isOpen(o))
-				{
-					loop_near(function(x, y)
-					{
-						var oo = xy2o(x, y);
-						if(!isOpen(oo) && oo.innerHTML != flag)
-							oo.classList.add('over');
-					}, o);
-					open_near(n.x, n.y);
-					return false;
-				}
+				
 				open_tile(o, n.x, n.y);
 			}
 			else
 			{
-				if(isOpen(o))
-					return false;
+				//if(isOpen(o))
+					//return false;
 				var cnt = $('#mineinf');
 				var mine_diff = 0;
 				if(o.innerHTML != flag)
@@ -368,7 +370,11 @@
 			var b = document.body;
 			b.oncontextmenu = function(){return false};
 			b.onmouseup = do_up;
-			var s = {"auto_open":"Открывать соседние клетки по возможности","mind_mode":"Автоматически уменьшать вес поля после установки мин"};
+			var s = {
+				"auto_open":"Открывать соседние клетки по возможности",
+				"mind_mode":"Автоматически уменьшать вес поля после установки мин",
+				"swap_mouse":"Поменять местами кнопки мыши",
+			};
 			for(i in s)
 			{
 				if(getopt(i) == undefined)
