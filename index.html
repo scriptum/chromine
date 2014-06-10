@@ -97,7 +97,8 @@
 	}
 	function loop_near(f, o)
 	{
-		o = o2xy(o), x = o.x, y = o.y;
+		o = o2xy(o);
+		var x = o.x, y = o.y;
 		function chk(f, x, y){
 			x >= 0 && x < X && y >= 0 && y < Y && f(xy2o(x, y));
 		}
