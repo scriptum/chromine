@@ -74,320 +74,238 @@
 	#tile td.open, #tile td.over{background:#ace}
 	</style>
 	<script>
-		function $$(s){return [].slice.call(document.querySelectorAll(s))}
-		function $(s){return document.querySelector(s)}
-		function creat(e){return document.createElement(e)}
-		function rnd(a, b){return Math.floor(Math.random()*(b-a+1))+a;}
-		function getopt(o){return localStorage.getItem(o)}
-		function setopt(o,v){return localStorage.setItem(o,v)}
-		var flag = '⚑';
-		var bomb = '☢';
-		var game =
-		{
-			tiles:[],
-			x:32,
-			y:16,
-			mines:99
+	function $$(s){return [].slice.call(document.querySelectorAll(s))}
+	function $(s){return document.querySelector(s)}
+	function I(s){return document.getElementById(s)}
+	function creat(e){return document.createElement(e)}
+	function rnd(a, b){return Math.floor(Math.random()*(b-a+1))+a;}
+	function getopt(o){return localStorage.getItem(o)}
+	function setopt(o, v){return localStorage.setItem(o,v)}
+	function getMine(o){return o.getAttribute("m") == "true"}
+	function setMine(o, v){return o.setAttribute("m", v)}
+	var flag = "⚑";
+	var bomb = "☢";
+	var A = [], X = 32, Y = 16, M = 99, begin, end, over, time, opened, O;
+	function o2xy(o)
+	{
+		o = o.id.substr(1).split("_");
+		return {x: parseInt(o[0]), y: parseInt(o[1])}
+	}
+	function xy2o(x, y)
+	{
+		return I("t" + x + "_" + y);
+	}
+	function loop_near(f, o)
+	{
+		o = o2xy(o), x = o.x, y = o.y;
+		function chk(f, x, y){
+			x >= 0 && x < X && y >= 0 && y < Y && f(xy2o(x, y));
 		}
-		function o2xy(o)
-		{
-			var n = o.id.substr(1).split('_');
-			return {x: parseInt(n[0]), y: parseInt(n[1])}
+		chk(f, x - 1, y - 1);
+		chk(f, x,     y - 1);
+		chk(f, x + 1, y - 1);
+		chk(f, x - 1, y    );
+		chk(f, x + 1, y    );
+		chk(f, x - 1, y + 1);
+		chk(f, x + 1, y + 1);
+		chk(f, x,     y + 1);
+	}
+	function mines_near(o, flags)
+	{
+		var m = 0;
+		loop_near(function(o){
+			flags ? o.innerHTML == flag && m++ : getMine(o) && m++
+		}, o);
+		return m;
+	}
+	function loop_game(f)
+	{
+		for(var j = 0; j < Y; j++)
+			for(var i = 0; i < X; i++)
+				f(xy2o(i,j))
+	}
+	function isOpen(o)
+	{
+		return o.getAttribute("class") == "open"
+	}
+	function open_near(o)
+	{
+		if(getopt("mind_mode") == "true"){
+			if(o.innerHTML > 0)
+				return;
 		}
-		function xy2o(x, y)
-		{
-			return $('#t' + x + '_' + y);
-		}
-		function loop_near(f, x, y)
-		{
-			if(typeof(x) != 'number')
-			{
-				var n = o2xy(x);
-				x = n.x;
-				y = n.y;
-			}
-			function chk(f, x, y)
-			{
-				if(x >= 0 && x < game.x && y >= 0 && y < game.y)
-					f(x, y, x + y * game.x);
-			}
-			chk(f,x-1,y-1);
-			chk(f,x,y-1);
-			chk(f,x+1,y-1);
-			chk(f,x-1,y);
-			chk(f,x+1,y);
-			chk(f,x-1,y+1);
-			chk(f,x+1,y+1);
-			chk(f,x,y+1);
-		}
-		function mines_near(x, y, flags)
-		{
-			var mines = 0;
-			if(flags)
-				loop_near(function(x, y)
-				{
-					if(xy2o(x, y).innerHTML == flag)
-						mines++;
-				}, x, y);
-			else
-				loop_near(function(x, y, p)
-				{
-					if(game.tiles[p])
-						mines++;
-				}, x, y);
-			return mines;
-		}
-		function loop_game(f)
-		{
-			for(var j = 0; j < game.y; j++)
-				for(var i = 0; i < game.x; i++)
-					f(i, j, i + j * game.x)
-		}
-		function isOpen(o)
-		{
-			return o.getAttribute("class") == "open"
-		}
-		function open_near(x, y)
-		{
-			if(getopt('mind_mode') == 'true')
-			{
-				if(xy2o(x, y).innerHTML > 0)
-					return;
+		else
+			if(o.innerHTML != mines_near(o, true))
+				return;
+		loop_near(function(o){
+			if(!isOpen(o) && o.innerHTML != flag)
+				open_tile(o);
+		}, o);
+	}
+	function game_end()
+	{
+		end = true;
+		loop_game(function(o){
+			if(getMine(o)){
+				if(o.innerHTML != flag) o.innerHTML = over ? bomb : flag;
 			}
 			else
-			{
-				if(xy2o(x, y).innerHTML != mines_near(x, y, true))
-					return;
-			}
-			loop_near(function(x, y)
-			{
-				var o = xy2o(x, y);
-				if(!isOpen(o) && o.innerHTML != flag)
-					open_tile(o, x, y);
-			}, x, y);
+				if(o.innerHTML == flag) o.setAttribute("class", "mine_bad");
+		})
+	}
+	function victory()
+	{
+		if(end) return false;
+		game_end();
+		alert("Победа! Вермя: " + Math.floor((new Date() - time) / 100) / 10);
+		setTimeout(start, 500);
+		return false;
+	}
+	function place_mines(i)
+	{
+		time = new Date();
+		i = o2xy(i);
+		var x = i.x, y = i.y;
+		for(var m = 0; m < M;){
+			var r_x = rnd(0, X - 1), r_y = rnd(0, Y - 1), o = xy2o(r_x, r_y);
+			if(r_x >= x - 1 && r_x <= x + 1 && r_y >= y - 1 && r_y <= y + 1 || getMine(o)) continue;
+			setMine(o, true);
+			m++;
 		}
-		function open_auto(x, y)
-		{
-			if(getopt('auto_open') == 'true')
-				open_near(x, y);
-		}
-		function game_end(is_over)
-		{
-			game.end = true;
-			loop_game(function(x,y,p)
-			{
-				var o = xy2o(x, y);
-				if(game.tiles[p])
-				{
-					if(o.innerHTML != flag)
-					{
-						if(game.over)
-							o.innerHTML = bomb;
-						else
-							o.innerHTML = flag;
-					}
-				}
-				else
-				{
-					if(o.innerHTML == flag)
-						o.setAttribute("class", "mine_bad");
-				}
-			})
-		}
-		function victory()
-		{
-			if(game.end)
-				return false;
+	}
+	function recalcMines(o)
+	{
+		var m = mines_near(o, false);
+		o.innerHTML = getopt("mind_mode") == "true" ? m - mines_near(o, true) : m;
+		if(o.innerHTML == "0")
+			o.innerHTML = "";
+		o.setAttribute("clr", "c" + o.innerHTML);
+	}
+	function open_tile(o)
+	{
+		if(end || isOpen(o)) return false;
+		if(getMine(o)){
+			o.setAttribute("class", "mine");
+			over = true;
 			game_end();
-			alert('Победа! Вермя: ' + Math.floor((new Date() - game.time) / 100) / 10);
-			setTimeout(start, 500);
 			return false;
 		}
-		function game_over()
-		{
-			game.over = true;
-			game_end();
+		if(begin){
+			begin = false;
+			place_mines(o);
 		}
-		function place_mines(x, y)
-		{
-			game.time = new Date();
-			for(var m = 0; m < game.mines;)
-			{
-				var r_x = rnd(0, game.x - 1);
-				var r_y = rnd(0, game.y - 1);
-				var p = r_x + r_y * game.x;
-				if(r_x >= x - 1 && r_x <= x + 1 && r_y >= y - 1 && r_y <= y + 1 || game.tiles[p])
-					continue;
-				game.tiles[p] = true;
-				m++;
-			}
-		}
-		function recalcMines(o, x, y)
-		{
-			var mines = mines_near(x, y);
-			if(getopt('mind_mode') == 'true')
-				o.innerHTML = mines - mines_near(x, y, true);
-			else
-				o.innerHTML = mines;
-			if(o.innerHTML == "0")
-				o.innerHTML = "";
-			o.setAttribute("clr", "c" + o.innerHTML);
-		}
-		function open_tile(o, x, y)
-		{
-			if(game.end || isOpen(o))
-				return false;
-			if(game.tiles[x + y * game.x])
-			{
-				o.setAttribute("class", "mine");
-				game_over();
-				return false;
-			}
-			if(game.begin)
-			{
-				game.begin = false;
-				place_mines(x, y);
-			}
-			o.setAttribute("class", "open");
-			recalcMines(o, x, y);
-			game.opened++;
-			if(game.opened == game.x * game.y - game.mines)
-				return victory();
-			open_near(x, y);
-		}
-		function do_down(e)
-		{
-			if(game.end)
-				return false;
-			var o = e.target;
-			if(isOpen(o))
-			{
-				loop_near(function(x, y)
-				{
-					var oo = xy2o(x, y);
-					if(!isOpen(oo) && oo.innerHTML != flag)
-						oo.classList.add('over');
-				}, o);
-				open_near(n.x, n.y);
-				return false;
-			}
-			var swp = getopt('swap_mouse') == 'true';
-			if(e.button == 0 && !swp || e.button == 2 && swp || game.begin)
-			{
-				if(o.innerHTML == flag)
-					return false;
-				var n = o2xy(o);
-				
-				open_tile(o, n.x, n.y);
-			}
-			else
-			{
-				//if(isOpen(o))
-					//return false;
-				var cnt = $('#mineinf');
-				var mine_diff = 0;
-				if(o.innerHTML != flag)
-				{
-					o.innerHTML = flag;
-					cnt.innerHTML--;
-					if(cnt.innerHTML == 0)
-					{
-						loop_game(function(i, j)
-						{
-							var o = xy2o(i, j);
-							if(o.innerHTML != flag && !isOpen(o))
-								open_tile(o, i, j);
-						});
-						if(!game.over)
-							return victory();
-					}
-					mine_diff = -1;
-				}
-				else
-				{
-					o.innerHTML = '';
-					cnt.innerHTML++;
-					mine_diff = 1;
-				}
-				loop_near(function(x,y,p)
-				{
-					var o = xy2o(x, y);
-					if(isOpen(o))
-					{
-						recalcMines(o, x, y);
-						open_auto(x, y);
-					}
-				}, o);
-			}
+		o.setAttribute("class", "open");
+		recalcMines(o);
+		opened++;
+		if(opened == X * Y - M) return victory();
+		open_near(o);
+	}
+	function do_down(e)
+	{
+		if(end)
+			return false;
+		O = e.target;
+		if(isOpen(O)){
+			loop_near(function(O){
+				if(!isOpen(O) && O.innerHTML != flag)
+					O.classList.add("over");
+			}, O);
+			open_near(O);
 			return false;
 		}
-		function do_up(e)
-		{
-			loop_game(function(x,y){xy2o(x,y).classList.remove('over')})
+		var swp = getopt("swap_mouse") == "true";
+		if(e.button == 0 && !swp || e.button == 2 && swp || begin){
+			if(O.innerHTML == flag)
+				return false;
+			open_tile(O);
 		}
-		function start()
-		{
-			game.begin = true;
-			game.end = false;
-			game.over = false;
-			game.opened = 0;
-			loop_game(function(x,y,p){game.tiles[p] = false})
-			$('#tile').removeChild($('#tile tbody'));
-			$('#mineinf').innerHTML = game.mines;
-			$('#fldinf').innerHTML = game.x + 'x' + game.y;
-			var tbdy = creat('tbody');
-			for(var i = 0; i < game.y; i++)
-			{
-				var tr = creat('tr');
-				for(var j = 0; j < game.x; j++)
-				{
-					var td = creat('td');
-					td.id = 't' + j + '_' + i;
-					td.onmousedown = do_down;
-					tr.appendChild(td);
+		else{
+			var cnt = I("mineinf");
+			if(O.innerHTML != flag){
+				O.innerHTML = flag;
+				cnt.innerHTML--;
+				if(cnt.innerHTML == 0){
+					loop_game(function(O){
+						if(O.innerHTML != flag && !isOpen(O))
+							open_tile(O);
+					});
+					if(!over)
+						return victory();
 				}
-				tbdy.appendChild(tr);
 			}
-			$('#tile').appendChild(tbdy);
-		}
-		function start_button(e)
-		{
-			var o = e.target;
-			var a = o.id.split('x');
-			game.x = a[0];
-			game.y = a[1];
-			game.mines = a[2];
-			$('#lvlinf').innerHTML = o.value;
-			start();
-		}
-		function init()
-		{
-			$$('#mode input').forEach(function(e)
-			{
-				e.onclick = start_button
-			});
-			start();
-			var b = document.body;
-			b.oncontextmenu = function(){return false};
-			b.onmouseup = do_up;
-			var s = {
-				"auto_open":"Открывать соседние клетки по возможности",
-				"mind_mode":"Автоматически уменьшать вес поля после установки мин",
-				"swap_mouse":"Поменять местами кнопки мыши",
-			};
-			for(i in s)
-			{
-				if(getopt(i) == undefined)
-					setopt(i, false);
-				$('#conf_window').innerHTML += '<input type="checkbox" onchange="settings(this)" name="'+i+'"'+((getopt(i) == 'true') ? ' checked' : '')+'/> '+s[i]+' <br />';
+			else{
+				O.innerHTML = "";
+				cnt.innerHTML++;
 			}
-			$('#close').onmousedown = function(){$('#conf_window').style.display = 'none'}
-			$('#conf').onmousedown = function(){$('#conf_window').style.display = 'block'}
+			loop_near(function(O){
+				if(isOpen(O)){
+					recalcMines(O);
+					if(getopt("auto_open") == "true")
+						open_near(O);
+				}
+			}, O);
 		}
-		function settings(e)
-		{
-			setopt(e.name, e.checked)
+		return false;
+	}
+	function start()
+	{
+		begin = true;
+		end = false;
+		over = false;
+		opened = 0;
+		I("tile").removeChild($("#tile tbody"));
+		I("mineinf").innerHTML = M;
+		I("fldinf").innerHTML = X + "x" + Y;
+		var tbdy = creat("tbody");
+		for(var i = 0; i < Y; i++){
+			var tr = creat("tr");
+			for(var j = 0; j < X; j++){
+				var td = creat("td");
+				td.id = "t" + j + "_" + i;
+				td.onmousedown = do_down;
+				tr.appendChild(td);
+			}
+			tbdy.appendChild(tr);
+		}
+		I("tile").appendChild(tbdy);
+		loop_game(function(o){setMine(o,false)});
+	}
+	function start_button(e)
+	{
+		var o = e.target;
+		var a = o.id.split("x");
+		X = a[0];
+		Y = a[1];
+		M = a[2];
+		I("lvlinf").innerHTML = o.value;
+		start();
+	}
+	function init()
+	{
+		$$("#mode input").forEach(function(e){
+			e.onclick = start_button
+		});
+		start();
+		document.body.oncontextmenu = function(){return false};
+		document.body.onmouseup = function(){
+			loop_near(function(o){
+				o.classList.remove("over")
+			}, O)
 		};
+		var s = {
+			"auto_open":"Открывать соседние клетки по возможности",
+			"mind_mode":"Автоматически уменьшать вес поля после установки мин",
+			"swap_mouse":"Поменять местами кнопки мыши"
+		};
+		var conf = I("conf_window");
+		for(i in s){
+			if(getopt(i) == undefined)
+				setopt(i, false);
+			conf.innerHTML += '<input type="checkbox" onchange="setopt(this.name, this.checked)" name="'+i+'"'+((getopt(i) == "true") ? " checked" : "")+"/> "+s[i]+" <br />";
+		}
+		I("close").onmousedown = function(){conf.style.display = "none"}
+		I("conf").onmousedown = function(){conf.style.display = "block"}
+	}
 	</script>
 </head>
 <body onload="init()">
