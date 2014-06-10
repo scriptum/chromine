@@ -271,24 +271,32 @@
 		I("tile").appendChild(tbdy);
 		loop_game(function(o){setMine(o,false)});
 	}
-	function start_button(e)
-	{
-		var o = e.target;
-		var a = o.id.split("x");
-		X = a[0];
-		Y = a[1];
-		M = a[2];
-		I("lvlinf").innerHTML = o.value;
-		start();
-	}
 	function init()
 	{
-		$$("#mode input").forEach(function(e){
-			e.onclick = start_button
-		});
+		var B = document.body, a, b, c, i;
+		a = {
+			"Новичок":[8,8,30],
+			"Продвинутый":[16,16,40],
+			"Профессионал":[32,16,90],
+			"Эксперт":[60,30,400]
+		};
+		b = creat("div");
+		B.appendChild(b);
+		for(i in a){
+			c = creat("input");
+			c.value = i;
+			c.onclick = function(){
+				I("lvlinf").innerHTML = i;
+				X = a[i][0];
+				Y = a[i][1];
+				M = a[i][2];
+				start();
+			}
+			b.appendChild(c);
+		}
 		start();
-		document.body.oncontextmenu = function(){return false};
-		document.body.onmouseup = function(){
+		b.oncontextmenu = function(){return false};
+		b.onmouseup = function(){
 			loop_near(function(o){
 				o.classList.remove("over")
 			}, O)
